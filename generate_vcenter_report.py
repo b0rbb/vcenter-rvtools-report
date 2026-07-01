@@ -7,6 +7,7 @@ a PowerPoint report with slides grouped by datacenter:
   - Divider slide per datacenter
   - ESXi Hosts slide: one row per host with CPU model, memory, VM count, etc.
   - VM Resource Summary slide: storage allocated/used, memory, vCPUs, p:v ratio
+  - VergeOS Sizing slide: raw storage requirement and memory overhead estimate
 
 Usage:
     python generate_vcenter_report.py <input.xlsx> [output.pptx]
@@ -16,6 +17,7 @@ Requires:
 """
 
 import sys
+import math
 from pathlib import Path
 from collections import defaultdict
 
@@ -546,6 +548,96 @@ def add_summary_slide(prs, dc_name, summary):
                      font_size=10, color=MID_GRAY, italic=True)
 
 
+def add_vergeos_sizing_slide(prs, dc_name, summary):
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    set_slide_background(slide, LIGHT_GRAY)
+    add_header_bar(slide, f"{dc_name}  —  VergeOS Migration Sizing",
+                   "Estimated storage and memory overhead for equivalent VergeOS deployment")
+    add_accent_line(slide, 1.1)
+
+    num_nodes   = len(summary["hosts"])
+    usable_tib  = mib_to_tib(summary["alloc_mib"])   # provisioned allocation = usable needed
+    raw_tib     = round(usable_tib * 2, 2)
+
+    # 1 GB RAM overhead per TiB of usable storage, per node (ceiling)
+    storage_ram_gb = math.ceil(usable_tib)
+
+    # Nodes 1 & 2 carry an extra 16 GB system overhead each
+    system_overhead_gb = 16 * min(num_nodes, 2)
+    total_overhead_gb  = system_overhead_gb + (num_nodes * storage_ram_gb)
+
+    n1n2_gb    = 16 + storage_ram_gb
+    others_gb  = storage_ram_gb
+
+    if num_nodes == 1:
+        detail_val = f"{n1n2_gb} GB"
+        detail_sub = "single node: 16 GB system overhead + storage RAM"
+    elif num_nodes == 2:
+        detail_val = f"Both nodes:  {n1n2_gb} GB each"
+        detail_sub = "16 GB system overhead + storage RAM per node"
+    else:
+        detail_val = f"Nodes 1 & 2:  {n1n2_gb} GB each"
+        detail_sub = f"Remaining {num_nodes - 2} node(s):  {others_gb} GB each"
+
+    cards = [
+        ("Usable Storage Needed",
+         f"{usable_tib} TiB",
+         "matches current VM provisioned allocation"),
+        ("Raw Storage Required (VergeOS)",
+         f"{raw_tib} TiB",
+         "VergeOS usable capacity = raw ÷ 2"),
+        ("Storage RAM Overhead",
+         f"{storage_ram_gb} GB per node",
+         f"1 GB per TiB of usable storage  ·  {num_nodes} node(s)"),
+        ("System RAM Overhead (Nodes 1 & 2)",
+         f"{system_overhead_gb} GB total",
+         "16 GB reserved per management node"),
+        ("Total Memory Overhead",
+         f"{total_overhead_gb} GB",
+         f"across all {num_nodes} node(s) — VM workload memory not included"),
+        ("Per-Node Overhead Detail",
+         detail_val,
+         detail_sub),
+    ]
+
+    card_w  = Inches(5.9)
+    card_h  = Inches(1.55)
+    col_gap = Inches(0.4)
+    row_gap = Inches(0.22)
+    start_x = [Inches(0.35), Inches(0.35) + card_w + col_gap]
+    start_y = Inches(1.3)
+
+    for idx, (label, value, sub) in enumerate(cards):
+        col = idx % 2
+        row = idx // 2
+        x = start_x[col]
+        y = start_y + row * (card_h + row_gap)
+
+        card = slide.shapes.add_shape(1, x, y, card_w, card_h)
+        card.fill.solid()
+        card.fill.fore_color.rgb = WHITE
+        card.line.color.rgb = ACCENT
+        card.line.width = Pt(1.5)
+
+        bar = slide.shapes.add_shape(1, x, y, Inches(0.08), card_h)
+        bar.fill.solid()
+        bar.fill.fore_color.rgb = ACCENT
+        bar.line.fill.background()
+
+        add_text_box(slide, label,
+                     x + Inches(0.18), y + Inches(0.1),
+                     card_w - Inches(0.25), Inches(0.38),
+                     font_size=11, color=MID_GRAY)
+        add_text_box(slide, value,
+                     x + Inches(0.18), y + Inches(0.42),
+                     card_w - Inches(0.25), Inches(0.65),
+                     font_size=24, bold=True, color=DARK_TEXT)
+        add_text_box(slide, sub,
+                     x + Inches(0.18), y + Inches(1.1),
+                     card_w - Inches(0.25), Inches(0.38),
+                     font_size=10, color=MID_GRAY, italic=True)
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -591,10 +683,11 @@ def build_presentation(xlsx_path, pptx_path):
         add_divider_slide(prs, dc)
         add_hosts_slide(prs, dc, s["hosts"])
         add_summary_slide(prs, dc, s)
+        add_vergeos_sizing_slide(prs, dc, s)
 
     prs.save(pptx_path)
     print(f"Saved:   {pptx_path}")
-    print(f"Slides:  {len(prs.slides)}  ({len(dcs)} DCs × 3 slides + 1 cover)")
+    print(f"Slides:  {len(prs.slides)}  ({len(dcs)} DCs × 4 slides + 1 cover)")
 
 
 if __name__ == "__main__":
