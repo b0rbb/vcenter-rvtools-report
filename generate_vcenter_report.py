@@ -17,7 +17,6 @@ Requires:
 """
 
 import sys
-import math
 from pathlib import Path
 from collections import defaultdict
 
@@ -555,63 +554,27 @@ def add_vergeos_sizing_slide(prs, dc_name, summary):
                    "Estimated storage and memory overhead for equivalent VergeOS deployment")
     add_accent_line(slide, 1.1)
 
-    num_nodes   = len(summary["hosts"])
-    usable_tib  = mib_to_tib(summary["alloc_mib"])   # provisioned allocation = usable needed
-    raw_tib     = round(usable_tib * 2, 2)
+    usable_tib = mib_to_tib(summary["alloc_mib"])
+    raw_tib    = round(usable_tib * 2, 2)
 
-    # 1 GB RAM overhead per TiB of usable storage, per node (ceiling)
-    storage_ram_gb = math.ceil(usable_tib)
+    card_w  = Inches(5.9)
+    card_h  = Inches(1.55)
+    col_gap = Inches(0.4)
+    start_x = [Inches(0.35), Inches(0.35) + card_w + col_gap]
+    start_y = Inches(1.3)
 
-    # Nodes 1 & 2 carry an extra 16 GB system overhead each
-    system_overhead_gb = 16 * min(num_nodes, 2)
-    total_overhead_gb  = system_overhead_gb + (num_nodes * storage_ram_gb)
-
-    n1n2_gb    = 16 + storage_ram_gb
-    others_gb  = storage_ram_gb
-
-    if num_nodes == 1:
-        detail_val = f"{n1n2_gb} GB"
-        detail_sub = "single node: 16 GB system overhead + storage RAM"
-    elif num_nodes == 2:
-        detail_val = f"Both nodes:  {n1n2_gb} GB each"
-        detail_sub = "16 GB system overhead + storage RAM per node"
-    else:
-        detail_val = f"Nodes 1 & 2:  {n1n2_gb} GB each"
-        detail_sub = f"Remaining {num_nodes - 2} node(s):  {others_gb} GB each"
-
-    cards = [
+    # Row 0: two storage cards
+    storage_cards = [
         ("Usable Storage Needed",
          f"{usable_tib} TiB",
          "matches current VM provisioned allocation"),
         ("Raw Storage Required (VergeOS)",
          f"{raw_tib} TiB",
          "VergeOS usable capacity = raw ÷ 2"),
-        ("Storage RAM Overhead",
-         f"{storage_ram_gb} GB per node",
-         f"1 GB per TiB of usable storage  ·  {num_nodes} node(s)"),
-        ("System RAM Overhead (Nodes 1 & 2)",
-         f"{system_overhead_gb} GB total",
-         "16 GB reserved per management node"),
-        ("Total Memory Overhead",
-         f"{total_overhead_gb} GB",
-         f"across all {num_nodes} node(s) — VM workload memory not included"),
-        ("Per-Node Overhead Detail",
-         detail_val,
-         detail_sub),
     ]
-
-    card_w  = Inches(5.9)
-    card_h  = Inches(1.55)
-    col_gap = Inches(0.4)
-    row_gap = Inches(0.22)
-    start_x = [Inches(0.35), Inches(0.35) + card_w + col_gap]
-    start_y = Inches(1.3)
-
-    for idx, (label, value, sub) in enumerate(cards):
-        col = idx % 2
-        row = idx // 2
+    for col, (label, value, sub) in enumerate(storage_cards):
         x = start_x[col]
-        y = start_y + row * (card_h + row_gap)
+        y = start_y
 
         card = slide.shapes.add_shape(1, x, y, card_w, card_h)
         card.fill.solid()
@@ -631,11 +594,43 @@ def add_vergeos_sizing_slide(prs, dc_name, summary):
         add_text_box(slide, value,
                      x + Inches(0.18), y + Inches(0.42),
                      card_w - Inches(0.25), Inches(0.65),
-                     font_size=24, bold=True, color=DARK_TEXT)
+                     font_size=28, bold=True, color=DARK_TEXT)
         add_text_box(slide, sub,
                      x + Inches(0.18), y + Inches(1.1),
                      card_w - Inches(0.25), Inches(0.38),
                      font_size=10, color=MID_GRAY, italic=True)
+
+    # Row 1: full-width Node RAM Overhead card
+    full_card_w = card_w * 2 + col_gap
+    x = start_x[0]
+    y = start_y + card_h + Inches(0.22)
+
+    card = slide.shapes.add_shape(1, x, y, full_card_w, card_h)
+    card.fill.solid()
+    card.fill.fore_color.rgb = WHITE
+    card.line.color.rgb = ACCENT
+    card.line.width = Pt(1.5)
+
+    bar = slide.shapes.add_shape(1, x, y, Inches(0.08), card_h)
+    bar.fill.solid()
+    bar.fill.fore_color.rgb = ACCENT
+    bar.line.fill.background()
+
+    add_text_box(slide, "Node RAM Overhead",
+                 x + Inches(0.18), y + Inches(0.1),
+                 full_card_w - Inches(0.25), Inches(0.38),
+                 font_size=11, color=MID_GRAY)
+    add_text_box(slide, "16 GB  +  (1 GB × raw TB of storage on the node)",
+                 x + Inches(0.18), y + Inches(0.42),
+                 full_card_w - Inches(0.25), Inches(0.65),
+                 font_size=22, bold=True, color=DARK_TEXT)
+    add_text_box(slide,
+                 "Every node carries a 16 GB system overhead. "
+                 "An additional 1 GB is required per TB of raw storage "
+                 "(physical disks or LUNs) presented to that node.",
+                 x + Inches(0.18), y + Inches(1.05),
+                 full_card_w - Inches(0.25), Inches(0.45),
+                 font_size=10, color=MID_GRAY, italic=True)
 
 
 # ---------------------------------------------------------------------------
