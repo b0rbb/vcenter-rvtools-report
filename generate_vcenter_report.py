@@ -536,7 +536,7 @@ def add_summary_slide(prs, dc_name, summary):
         add_text_box(slide, label,
                      x + Inches(0.18), y + Inches(0.1),
                      card_w - Inches(0.25), Inches(0.38),
-                     font_size=11, color=MID_GRAY)
+                     font_size=11, color=DARK_TEXT)
         add_text_box(slide, value,
                      x + Inches(0.18), y + Inches(0.42),
                      card_w - Inches(0.25), Inches(0.72),
@@ -590,7 +590,7 @@ def add_vergeos_sizing_slide(prs, dc_name, summary):
         add_text_box(slide, label,
                      x + Inches(0.18), y + Inches(0.1),
                      card_w - Inches(0.25), Inches(0.38),
-                     font_size=11, color=MID_GRAY)
+                     font_size=11, color=DARK_TEXT)
         add_text_box(slide, value,
                      x + Inches(0.18), y + Inches(0.42),
                      card_w - Inches(0.25), Inches(0.65),
@@ -631,6 +631,58 @@ def add_vergeos_sizing_slide(prs, dc_name, summary):
                  x + Inches(0.18), y + Inches(1.05),
                  full_card_w - Inches(0.25), Inches(0.45),
                  font_size=10, color=MID_GRAY, italic=True)
+
+
+def add_vergeos_node_specs_slide(prs, dc_name, summary):
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    set_slide_background(slide, LIGHT_GRAY)
+    num_nodes = len(summary["hosts"])
+    add_header_bar(slide, f"{dc_name}  —  VergeOS Node Specifications",
+                   f"{num_nodes} node(s) identified at this site — fill in suggested configuration below")
+    add_accent_line(slide, 1.1)
+
+    card_w    = Inches(5.9)
+    col_gap   = Inches(0.4)
+    spec_h    = Inches(1.7)
+    notes_h   = Inches(2.1)
+    row_gap   = Inches(0.2)
+    full_w    = card_w * 2 + col_gap
+    start_x   = [Inches(0.35), Inches(0.35) + card_w + col_gap]
+    start_y   = Inches(1.3)
+
+    def draw_empty_card(x, y, w, h, label):
+        card = slide.shapes.add_shape(1, x, y, w, h)
+        card.fill.solid()
+        card.fill.fore_color.rgb = WHITE
+        card.line.color.rgb = ACCENT
+        card.line.width = Pt(1.5)
+
+        bar = slide.shapes.add_shape(1, x, y, Inches(0.08), h)
+        bar.fill.solid()
+        bar.fill.fore_color.rgb = ACCENT
+        bar.line.fill.background()
+
+        add_text_box(slide, label,
+                     x + Inches(0.18), y + Inches(0.1),
+                     w - Inches(0.25), Inches(0.35),
+                     font_size=11, color=DARK_TEXT)
+
+    spec_labels = [
+        "Suggested Amount of Storage per Node",
+        "Suggested Amount of Memory per Node",
+        "Suggested Amount of Physical CPU Cores per Node",
+        "Suggested Tier 0 NVMe Drive Size",
+    ]
+
+    for idx, label in enumerate(spec_labels):
+        col = idx % 2
+        row = idx // 2
+        x = start_x[col]
+        y = start_y + row * (spec_h + row_gap)
+        draw_empty_card(x, y, card_w, spec_h, label)
+
+    notes_y = start_y + 2 * (spec_h + row_gap)
+    draw_empty_card(start_x[0], notes_y, full_w, notes_h, "Misc. Notes")
 
 
 # ---------------------------------------------------------------------------
@@ -679,10 +731,11 @@ def build_presentation(xlsx_path, pptx_path):
         add_hosts_slide(prs, dc, s["hosts"])
         add_summary_slide(prs, dc, s)
         add_vergeos_sizing_slide(prs, dc, s)
+        add_vergeos_node_specs_slide(prs, dc, s)
 
     prs.save(pptx_path)
     print(f"Saved:   {pptx_path}")
-    print(f"Slides:  {len(prs.slides)}  ({len(dcs)} DCs × 4 slides + 1 cover)")
+    print(f"Slides:  {len(prs.slides)}  ({len(dcs)} DCs × 5 slides + 1 cover)")
 
 
 if __name__ == "__main__":
