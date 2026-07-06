@@ -650,7 +650,7 @@ def add_vergeos_node_specs_slide(prs, dc_name, summary):
     start_x   = [Inches(0.35), Inches(0.35) + card_w + col_gap]
     start_y   = Inches(1.3)
 
-    def draw_empty_card(x, y, w, h, label):
+    def draw_card(x, y, w, h, label, value, sub):
         card = slide.shapes.add_shape(1, x, y, w, h)
         card.fill.solid()
         card.fill.fore_color.rgb = WHITE
@@ -666,23 +666,36 @@ def add_vergeos_node_specs_slide(prs, dc_name, summary):
                      x + Inches(0.18), y + Inches(0.1),
                      w - Inches(0.25), Inches(0.35),
                      font_size=11, color=DARK_TEXT)
+        add_text_box(slide, value,
+                     x + Inches(0.18), y + Inches(0.42),
+                     w - Inches(0.25), Inches(0.65),
+                     font_size=28, bold=True, color=DARK_TEXT)
+        add_text_box(slide, sub,
+                     x + Inches(0.18), y + Inches(1.1),
+                     w - Inches(0.25), Inches(0.38),
+                     font_size=10, color=MID_GRAY, italic=True)
 
-    spec_labels = [
-        "Suggested Amount of Storage per Node",
-        "Suggested Amount of Memory per Node",
-        "Suggested Amount of Physical CPU Cores per Node",
-        "Suggested Tier 0 NVMe Drive Size",
+    spec_cards = [
+        ("Suggested Amount of Storage per Node",
+         "—", "enter recommended raw storage capacity per node"),
+        ("Suggested Amount of Memory per Node",
+         "—", "enter recommended RAM per node"),
+        ("Suggested Amount of Physical CPU Cores per Node",
+         "—", "enter recommended physical core count per node"),
+        ("Suggested Tier 0 NVMe Drive Size",
+         "—", "enter recommended NVMe drive capacity for Tier 0"),
     ]
 
-    for idx, label in enumerate(spec_labels):
+    for idx, (label, value, sub) in enumerate(spec_cards):
         col = idx % 2
         row = idx // 2
         x = start_x[col]
         y = start_y + row * (spec_h + row_gap)
-        draw_empty_card(x, y, card_w, spec_h, label)
+        draw_card(x, y, card_w, spec_h, label, value, sub)
 
     notes_y = start_y + 2 * (spec_h + row_gap)
-    draw_empty_card(start_x[0], notes_y, full_w, notes_h, "Misc. Notes")
+    draw_card(start_x[0], notes_y, full_w, notes_h,
+              "Misc. Notes", "—", "enter any additional notes or recommendations")
 
 
 # ---------------------------------------------------------------------------
