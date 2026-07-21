@@ -28,7 +28,7 @@ from pptx.enum.text import PP_ALIGN
 
 
 # ---------------------------------------------------------------------------
-# Colour palette
+# Color palette
 # ---------------------------------------------------------------------------
 DARK_BG    = RGBColor(0x1E, 0x29, 0x3B)
 ACCENT     = RGBColor(0x00, 0x8C, 0xD7)
